@@ -1,0 +1,74 @@
+<?php
+// engine.php - Motore di calcolo danni e gestione turni
+
+// Funzione di utilità per sommare le stringhe "10+5+2" come nel tuo JS
+function sommaValori($stringa) {
+    if (empty($stringa)) return 0;
+    $numeri = explode('+', $stringa);
+    $totale = 0;
+    foreach ($numeri as $num) {
+        $totale += (float)trim($num);
+    }
+    return $totale;
+}
+
+// 1. MOTORE CALCOLO HP CON REGOLA DR
+function calcolaHPFinale($hpAttuali, $atkStr, $secchiStr, $defStr, $drStr, $drSources, $cureStr) {
+    $atk = sommaValori($atkStr);
+    $secchi = sommaValori($secchiStr);
+    $def = sommaValori($defStr);
+    $dr = sommaValori($drStr);
+    $cure = sommaValori($cureStr);
+    
+    if (empty($drSources)) $drSources = 1;
+
+    // Calcolo danni standard (Attacco * 2)
+    $danniStandard = $atk * 2;
+    
+    // REGOLA AGGIUNTIVA: La DR si ferma al tetto massimo del danno standard.
+    // Se ci sono solo attacchi "secchi" ($danniStandard = 0), la $drApplicabile sarà 0.
+    $drTotale = $dr * $drSources;
+    $drApplicabile = min($drTotale, $danniStandard); 
+
+    // La difesa statica si somma alla DR filtrata
+    $difeseTotali = $def + $drApplicabile;
+    
+    // Calcolo del danno standard effettivo (non scende sotto zero)
+    $danniEffettiviStandard = max(0, $danniStandard - $difeseTotali);
+
+    // I danni secchi si aggiungono puri, ignorando def e dr
+    $danniEffettiviTotali = $danniEffettiviStandard + $secchi;
+
+    $hpDopoDanni = $hpAttuali - $danniEffettiviTotali;
+    
+    // Le cure si applicano solo se il PG sopravvive al colpo (HP >= 1)
+    if ($hpDopoDanni >= 1) {
+        $hpDopoDanni += $cure;
+    }
+
+    return $hpDopoDanni;
+}
+
+// 2. MOTORE CALCOLO MANA E STATS (Tradotto dal tuo HTML)
+function calcolaManaFinale($manaAttuale, $consumiStr, $regenStr, $cureStr) {
+    $consumi = sommaValori($consumiStr);
+    $regen = sommaValori($regenStr);
+    $cure = sommaValori($cureStr);
+
+    $manaDopoConsumi = $manaAttuale - $consumi;
+    
+    if ($manaDopoConsumi > 0) {
+        $manaDopoConsumi += ($regen + $cure);
+    }
+    return $manaDopoConsumi;
+}
+
+function calcolaStatFinale($attuale, $azioneStr, $gratisStr, $ripStr) {
+    $azione = sommaValori($azioneStr);
+    $gratis = sommaValori($gratisStr);
+    $rip = sommaValori($ripStr);
+    
+    $costoNetto = $azione - $gratis - $rip;
+    return $attuale - $costoNetto;
+}
+?>
